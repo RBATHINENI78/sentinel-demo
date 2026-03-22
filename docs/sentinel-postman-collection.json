@@ -1,0 +1,377 @@
+{
+  "info": {
+    "name": "Sentinel Component",
+    "description": "API collection for the Sentinel Component — duplicate-safe WorkTask management.\n\nImport this file into Postman via File → Import → select this JSON.\n\nBase URL: http://localhost:8080",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "description": "Set this after a successful Create request"
+    },
+    {
+      "key": "recipientId",
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Work Tasks",
+      "item": [
+        {
+          "name": "Create Work Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"recipientId\": \"{{recipientId}}\",\n    \"title\": \"Fix login bug\",\n    \"description\": \"Users cannot login on mobile\",\n    \"createdBy\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks"]
+            },
+            "description": "Creates a new WorkTask for the given recipientId.\n\nProtected by @PreventDuplicate — a second call with the same recipientId returns 409 while the lock is active.\n\nExpected: 201 Created"
+          }
+        },
+        {
+          "name": "Create Work Task — Duplicate (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"recipientId\": \"{{recipientId}}\",\n    \"title\": \"Fix login bug\",\n    \"description\": \"Users cannot login on mobile\",\n    \"createdBy\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks"]
+            },
+            "description": "Same recipientId as the Create request — simulates a double-click.\n\nExpected: 409 Conflict  {\"errorCode\": \"DUPLICATE_REQUEST\"}"
+          }
+        },
+        {
+          "name": "Create Work Task — Validation Error (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Missing recipientId field\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks"]
+            },
+            "description": "Missing required recipientId field.\n\nExpected: 400 Bad Request  {\"errorCode\": \"VALIDATION_ERROR\", \"fieldErrors\": {\"recipientId\": ...}}"
+          }
+        },
+        {
+          "name": "Get Work Task by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "{{taskId}}"]
+            },
+            "description": "Fetch a single task by its UUID.\n\nSet the 'taskId' collection variable to a real UUID from a Create response.\n\nExpected: 200 OK"
+          }
+        },
+        {
+          "name": "Get Work Task by ID — Not Found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Expected: 404 Not Found  {\"errorCode\": \"NOT_FOUND\"}"
+          }
+        },
+        {
+          "name": "List Tasks — ACTIVE",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks?status=ACTIVE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE"
+                }
+              ]
+            },
+            "description": "List all ACTIVE tasks. This read path is never blocked by the duplicate-prevention locking.\n\nExpected: 200 OK  [...] array"
+          }
+        },
+        {
+          "name": "List Tasks — COMPLETED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks?status=COMPLETED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "COMPLETED"
+                }
+              ]
+            },
+            "description": "Expected: 200 OK  [...] array"
+          }
+        },
+        {
+          "name": "List Tasks — CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks?status=CANCELLED",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CANCELLED"
+                }
+              ]
+            },
+            "description": "Expected: 200 OK  [...] array"
+          }
+        },
+        {
+          "name": "List Tasks — Paginated",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks?status=ACTIVE&paged=true&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE"
+                },
+                {
+                  "key": "paged",
+                  "value": "true"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Returns a Spring Page object with content, totalPages, totalElements, etc.\n\nExpected: 200 OK  {content: [...], totalPages: N, ...}"
+          }
+        },
+        {
+          "name": "Get Tasks by Recipient",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/recipient/{{recipientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "recipient", "{{recipientId}}"]
+            },
+            "description": "Returns all tasks for a given recipientId, ordered by createdAt descending.\n\nExpected: 200 OK  [...] array"
+          }
+        },
+        {
+          "name": "Update Task Status — COMPLETED",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"COMPLETED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/{{taskId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "{{taskId}}", "status"]
+            },
+            "description": "Valid statuses: ACTIVE, COMPLETED, CANCELLED\n\nExpected: 200 OK  task with updated status"
+          }
+        },
+        {
+          "name": "Update Task Status — CANCELLED",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"CANCELLED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/{{taskId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "{{taskId}}", "status"]
+            },
+            "description": "Expected: 200 OK  task with updated status"
+          }
+        },
+        {
+          "name": "Update Task Status — Invalid Value (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"INVALID_STATUS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/{{taskId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "{{taskId}}", "status"]
+            },
+            "description": "Expected: 400 Bad Request"
+          }
+        },
+        {
+          "name": "Delete Work Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/{{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "{{taskId}}"]
+            },
+            "description": "Expected: 204 No Content"
+          }
+        },
+        {
+          "name": "Delete Work Task — Not Found (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/work-tasks/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "work-tasks", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Expected: 404 Not Found"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actuator",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Expected: 200 OK  {\"status\": \"UP\", ...}"
+          }
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "metrics"]
+            },
+            "description": "Lists all available metric names.\n\nExpected: 200 OK"
+          }
+        }
+      ]
+    }
+  ]
+}
