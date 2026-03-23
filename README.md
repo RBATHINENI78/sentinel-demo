@@ -54,17 +54,17 @@ When multiple pods receive simultaneous requests for the same recipient, naive d
 
 ```mermaid
 graph TB
-    subgraph OCP["OCP Cluster (multiple pods)"]
+    subgraph OCP["OCP Cluster(multiple pods)"]
         direction TB
-        P1["Pod 1\n(App Instance)"]
-        P2["Pod 2\n(App Instance)"]
-        P3["Pod N\n(App Instance)"]
+        P1["Pod 1 (App Instance)"]
+        P2["Pod 2 (App Instance)"]
+        P3["Pod N (App Instance)"]
     end
 
     subgraph DB["Shared Database (single source of truth)"]
         direction TB
-        RL["request_locks\nbusiness_key PRIMARY KEY\n← atomic dedup mutex"]
-        WT["work_tasks\nUNIQUE(recipient_id, status)\n← business data, never locked"]
+        RL["request_locks business_key PRIMARY KEY ← atomic dedup mutex"]
+        WT["work_tasks UNIQUE(recipient_id, status) ← business data, never locked"]
     end
 
     LB["Load Balancer / API Gateway"] --> P1
@@ -87,26 +87,26 @@ flowchart TD
     REQ([Request arrives]) --> AOP
 
     subgraph LAYER1["Layer 1 — @PreventDuplicate AOP Aspect (active guard)"]
-        AOP["Derive business key\nfrom request fields via SpEL\n\nINSERT INTO request_locks\nPK = business_key"]
+        AOP["Derive business key from request fields via SpEL INSERT INTO request_locks PK = business_key"]
     end
 
-    AOP -->|PK violation| C409["HTTP 409\nDuplicate blocked"]
+    AOP -->|PK violation| C409["HTTP 409 Duplicate blocked"]
     AOP -->|INSERT success| SVC
 
     subgraph LAYER2["Layer 2 — request_locks table (race condition guard)"]
-        SVC["WorkTaskService\nplain INSERT into work_tasks\n(no lock boilerplate)"]
+        SVC["WorkTaskService plain INSERT into work_tasks (no lock boilerplate)"]
     end
 
-    SVC -->|success| DONE["Lock stays as\n'already done' sentinel\n(TTL: 30s)"]
-    SVC -->|failure| RETRY["Lock deleted\n(allow client retry)"]
+    SVC -->|success| DONE["Lock stays as 'already done' sentinel (TTL: 30s)"]
+    SVC -->|failure| RETRY["Lock deleted (allow client retry)"]
 
     SVC --> L3
 
     subgraph LAYER3["Layer 3 — work_tasks unique constraint (passive safety net)"]
-        L3["UNIQUE(recipient_id, status)\nFires only on crash / extreme edge case\nNever triggered in normal flow"]
+        L3["UNIQUE(recipient_id, status) Fires only on crash / extreme edge case Never triggered in normal flow"]
     end
 
-    DONE --> SCHED["Scheduler purges expired rows\nevery 60 seconds"]
+    DONE --> SCHED["Scheduler purges expired rows every 60 seconds"]
 ```
 
 ### Layer 1 — AOP Aspect (primary guard)
@@ -162,17 +162,17 @@ Our design keeps all locking in `request_locks` only:
 ```mermaid
 stateDiagram-v2
     [*] --> Attempting: Request arrives
-    Attempting --> Acquired: INSERT success\n(first request)
-    Attempting --> Rejected: PK violation\n→ HTTP 409
+    Attempting --> Acquired: INSERT success (first request)
+    Attempting --> Rejected: PK violation → HTTP 409
 
     Acquired --> Succeeded: Method succeeds
     Acquired --> Failed: Method throws
 
-    Succeeded --> Sentinel: Lock retained as\n"already done" sentinel
-    Failed --> Released: Lock deleted\n(allow retry)
+    Succeeded --> Sentinel: Lock retained as "already done" sentinel
+    Failed --> Released: Lock deleted (allow retry)
 
     Sentinel --> Expired: TTL elapsed (30s)
-    Expired --> Cleaned: Scheduler purges\nevery 60s
+    Expired --> Cleaned: Scheduler purges every 60s
     Released --> [*]
     Cleaned --> [*]
     Rejected --> [*]
